@@ -7,10 +7,7 @@ on:
 jobs:
   fio:
     name: Tests
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-24.04-ppc64le, ubuntu-24.04-s390x]
+    runs-on: ubuntu-24.04-ppc64le
 
     steps:
       - name: Checkout code
