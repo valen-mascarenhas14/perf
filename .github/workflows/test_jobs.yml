@@ -1,0 +1,67 @@
+name: test_jobs
+
+on:
+  workflow_dispatch:
+    inputs:
+      runner_label:
+        description: 'Runner label to target (e.g. ubuntu-24.04-ppc64le)'
+        required: true
+        type: string
+      test_id:
+        description: 'Unique id for this run (used to correlate results back to the dispatch script)'
+        required: true
+        type: string
+      network_target:
+        description: 'URL to hit for the network-latency measurement'
+        required: false
+        default: 'https://api.github.com'
+        type: string
+      docker_image:
+        description: 'Container image to pull and run as the representative workload'
+        required: false
+        default: 'node:latest'
+        type: string
+      docker_command:
+        description: 'Command to run inside the container'
+        required: false
+        default: "node -e \"console.log(require('os').cpus().length)\""
+        type: string
+
+jobs:
+  benchmark:
+    runs-on: ${{ inputs.runner_label }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Record dispatch marker
+        run: echo "TESTID:${{ inputs.test_id }}"
+
+      - name: Measure network latency
+        run: |
+          curl -s -o /dev/null -w "NETLATENCY:connect=%{time_connect},ttfb=%{time_starttransfer},total=%{time_total}\n" \
+            "${{ inputs.network_target }}"
+
+      - name: Pull container image
+        run: |
+          START=$(date +%s.%N)
+          docker pull "${{ inputs.docker_image }}"
+          END=$(date +%s.%N)
+          echo "DOCKERPULL:seconds=$(echo "$END - $START" | bc)"
+
+      - name: Run representative workload in container
+        run: |
+          # Swap docker_image / docker_command (workflow inputs above) for your real
+          # job's actual container + work. Keep both identical across the VPC and
+          # non-VPC runs so the comparison is fair.
+          START=$(date +%s.%N)
+          docker run --rm -t \
+            -v /proc/cpuinfo:/proc/cpuinfo:rw \
+            -v /proc/meminfo:/proc/meminfo:rw \
+            -v /proc/stat:/proc/stat:rw \
+            "${{ inputs.docker_image }}" \
+            sh -c "${{ inputs.docker_command }}"
+          END=$(date +%s.%N)
+          echo "DOCKERRUN:seconds=$(echo "$END - $START" | bc)"
+
+      - name: Record completion marker
+        run: echo "DONE:${{ inputs.test_id }}"
