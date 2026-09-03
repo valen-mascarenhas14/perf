@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       runner_label:
-        description: 'Runner label to target (e.g. ubuntu-24.04-ppc64le)'
+        description: 'Runner label to target (e.g. vpc-runner, non-vpc-runner)'
         required: true
         type: string
       test_id:
@@ -34,21 +34,30 @@ jobs:
       - uses: actions/checkout@v5
 
       - name: Record dispatch marker
-        run: echo "TESTID:${{ inputs.test_id }}"
+        env:
+          TEST_ID: ${{ inputs.test_id }}
+        run: echo "TESTID:$TEST_ID"
 
       - name: Measure network latency
+        env:
+          NETWORK_TARGET: ${{ inputs.network_target }}
         run: |
           curl -s -o /dev/null -w "NETLATENCY:connect=%{time_connect},ttfb=%{time_starttransfer},total=%{time_total}\n" \
-            "${{ inputs.network_target }}"
+            "$NETWORK_TARGET"
 
       - name: Pull container image
+        env:
+          DOCKER_IMAGE: ${{ inputs.docker_image }}
         run: |
           START=$(date +%s.%N)
-          docker pull "${{ inputs.docker_image }}"
+          docker pull "$DOCKER_IMAGE"
           END=$(date +%s.%N)
-          echo "DOCKERPULL:seconds=$(echo "$END - $START" | bc)"
+          echo "DOCKERPULL:seconds=$(awk -v s="$START" -v e="$END" 'BEGIN{print e-s}')"
 
       - name: Run representative workload in container
+        env:
+          DOCKER_IMAGE: ${{ inputs.docker_image }}
+          DOCKER_COMMAND: ${{ inputs.docker_command }}
         run: |
           # Swap docker_image / docker_command (workflow inputs above) for your real
           # job's actual container + work. Keep both identical across the VPC and
@@ -58,10 +67,12 @@ jobs:
             -v /proc/cpuinfo:/proc/cpuinfo:rw \
             -v /proc/meminfo:/proc/meminfo:rw \
             -v /proc/stat:/proc/stat:rw \
-            "${{ inputs.docker_image }}" \
-            sh -c "${{ inputs.docker_command }}"
+            "$DOCKER_IMAGE" \
+            sh -c "$DOCKER_COMMAND"
           END=$(date +%s.%N)
-          echo "DOCKERRUN:seconds=$(echo "$END - $START" | bc)"
+          echo "DOCKERRUN:seconds=$(awk -v s="$START" -v e="$END" 'BEGIN{print e-s}')"
 
       - name: Record completion marker
-        run: echo "DONE:${{ inputs.test_id }}"
+        env:
+          TEST_ID: ${{ inputs.test_id }}
+        run: echo "DONE:$TEST_ID"
