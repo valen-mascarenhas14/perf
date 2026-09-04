@@ -36,6 +36,9 @@ jobs:
           resolvectl status
 
           ip a
+          echo "----****----"
+          curl ifconfig.me
+          echo "----****----"
 
           echo "---------------------------------------------------"
           docker run --rm ubuntu:latest sh -c "cat /etc/resolv.conf"
