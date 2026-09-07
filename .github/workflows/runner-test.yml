@@ -1,0 +1,56 @@
+name: runner-download-benchmark
+
+on:
+  workflow_dispatch:
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-24.04-ppc64le
+    steps:
+      - name: Pre-pull curl image (so it doesn't skew container timing)
+        run: docker pull curlimages/curl:latest
+
+      - name: Download test - on runner
+        id: runner_download
+        run: |
+          T0=$(date +%s%N)
+          time curl -o file.zip http://212.183.159.230/1GB.zip
+          T1=$(date +%s%N)
+          echo "runner_download_ms=$(( (T1-T0)/1000000 ))" >> "$GITHUB_OUTPUT"
+          rm -f file.zip
+
+      - name: Download test - inside container
+        id: container_download
+        run: |
+          T0=$(date +%s%N)
+          docker run --rm curlimages/curl:latest sh -c \
+            "time curl -o /tmp/file.zip http://212.183.159.230/1GB.zip"
+          T1=$(date +%s%N)
+          echo "container_download_ms=$(( (T1-T0)/1000000 ))" >> "$GITHUB_OUTPUT"
+
+      - name: Write summary
+        run: |
+          echo "## 1GB Download Benchmark - ubuntu-24.04-ppc64le" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Context | Download time (ms) |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|---|---|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| On runner | ${{ steps.runner_download.outputs.runner_download_ms }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Inside container | ${{ steps.container_download.outputs.container_download_ms }} |" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Save result
+        run: |
+          cat <<EOF > result.json
+          {
+            "runs_on": "ubuntu-24.04-ppc64le",
+            "run_number": "${{ github.run_number }}",
+            "runner_download_ms": ${{ steps.runner_download.outputs.runner_download_ms }},
+            "container_download_ms": ${{ steps.container_download.outputs.container_download_ms }}
+          }
+          EOF
+
+      - name: Upload result
+        uses: actions/upload-artifact@v4
+        with:
+          name: download-benchmark-${{ github.run_number }}
+          path: result.json
+          retention-days: 30
