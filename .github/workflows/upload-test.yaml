@@ -1,0 +1,48 @@
+name: Upload Speed Test
+
+on:
+  workflow_dispatch:
+
+jobs:
+  upload-speed-runner:
+    runs-on: ubuntu-24.04-ppc64le
+    steps:
+      - name: Test upload speed (runner)
+        run: |
+          dd if=/dev/urandom of=/tmp/test.bin bs=1M count=100 status=none
+
+          SPEED=$(curl --silent --show-error \
+            --output /dev/null \
+            --request POST \
+            --data-binary @/tmp/test.bin \
+            --write-out '%{speed_upload}' \
+            https://speed.cloudflare.com/__up)
+
+          echo "Upload speed (runner): $(awk "BEGIN {printf \"%.2f\", $SPEED * 8 / 1000000}") Mbps"
+
+          rm /tmp/test.bin
+
+  upload-speed-container:
+    runs-on: ubuntu-24.04-ppc64le
+    container:
+      image: ubuntu:24.04
+    steps:
+      - name: Install curl
+        run: |
+          apt-get update
+          apt-get install -y curl
+
+      - name: Test upload speed (container)
+        run: |
+          dd if=/dev/urandom of=/tmp/test.bin bs=1M count=100 status=none
+
+          SPEED=$(curl --silent --show-error \
+            --output /dev/null \
+            --request POST \
+            --data-binary @/tmp/test.bin \
+            --write-out '%{speed_upload}' \
+            https://speed.cloudflare.com/__up)
+
+          echo "Upload speed (container): $(awk "BEGIN {printf \"%.2f\", $SPEED * 8 / 1000000}") Mbps"
+
+          rm /tmp/test.bin
