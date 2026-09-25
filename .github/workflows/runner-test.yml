@@ -14,7 +14,7 @@ jobs:
         id: runner_download
         run: |
           T0=$(date +%s%N)
-          time curl -o file.zip http://212.183.159.230/1GB.zip
+          time curl -o file.dmg https://github.com/android/ndk/releases/tag/r30#:~:text=android%2Dndk%2Dr30%2Ddarwin.dmg
           T1=$(date +%s%N)
           echo "runner_download_ms=$(( (T1-T0)/1000000 ))" >> "$GITHUB_OUTPUT"
           rm -f file.zip
@@ -24,7 +24,7 @@ jobs:
         run: |
           T0=$(date +%s%N)
           docker run --rm curlimages/curl:latest sh -c \
-            "time curl -o /tmp/file.zip http://212.183.159.230/1GB.zip"
+            "time curl -o /tmp/file.dmg https://github.com/android/ndk/releases/tag/r30#:~:text=android%2Dndk%2Dr30%2Ddarwin.dmg"
           T1=$(date +%s%N)
           echo "container_download_ms=$(( (T1-T0)/1000000 ))" >> "$GITHUB_OUTPUT"
 
