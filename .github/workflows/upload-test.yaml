@@ -4,7 +4,7 @@ on:
 
 jobs:
   upload-speed-test:
-    runs-on: ubuntu-24.04-ppc64le
+    runs-on: ubuntu-24.04-ppc64le-p10
     steps:
       - name: Test upload speed (runner)
         run: |
